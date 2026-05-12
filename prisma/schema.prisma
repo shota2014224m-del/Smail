@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  picture      String?
+  accessToken  String
+  refreshToken String
+  tokenExpiry  DateTime?
+  isActive     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  emails        Email[]
+  replyPatterns ReplyPattern[]
+}
+
+model Email {
+  id          String   @id
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  threadId    String
+  subject     String
+  from        String
+  fromName    String?
+  to          String
+  body        String
+  bodyHtml    String?
+  snippet     String?
+  date        DateTime
+  isRead      Boolean  @default(false)
+  isStarred   Boolean  @default(false)
+  labels      String   @default("[]")
+  createdAt   DateTime @default(now())
+
+  replyPatterns ReplyPattern[]
+}
+
+model ReplyPattern {
+  id              String   @id @default(cuid())
+  accountId       String
+  account         Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  emailId         String?
+  email           Email?   @relation(fields: [emailId], references: [id], onDelete: SetNull)
+  originalSubject String
+  originalFrom    String
+  originalBody    String
+  replyBody       String
+  feedback        Int      @default(0)
+  createdAt       DateTime @default(now())
+}
+
+model ObsidianCache {
+  id        String   @id @default(cuid())
+  filePath  String   @unique
+  content   String
+  updatedAt DateTime @updatedAt
+}
+
+model Settings {
+  id             String  @id @default("global")
+  obsidianPath   String  @default("")
+  claudeModel    String  @default("claude-sonnet-4-6")
+  replyLanguage  String  @default("ja")
+  systemPrompt   String  @default("")
+}
