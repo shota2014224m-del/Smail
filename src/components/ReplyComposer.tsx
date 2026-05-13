@@ -74,7 +74,7 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
             placeholder="AI指示（例：丁寧に断る、詳細を確認する）"
-            className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="flex-1 text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
           />
           <button
             onClick={handleGenerate}
@@ -124,7 +124,7 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
           onChange={(e) => setReplyBody(e.target.value)}
           placeholder="返信を入力、またはAI生成ボタンで自動作成..."
           rows={8}
-          className="w-full text-sm border border-gray-200 rounded-lg px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono"
+          className="w-full text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-lg px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono bg-white"
         />
         <div className="flex justify-end gap-2 mt-3">
           <button
