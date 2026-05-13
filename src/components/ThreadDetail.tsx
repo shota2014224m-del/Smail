@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { EmailMessage } from "@/types";
 import ReplyComposer from "./ReplyComposer";
+import ForwardComposer from "./ForwardComposer";
 
 interface Props {
   email: EmailMessage;
@@ -100,6 +101,7 @@ export default function ThreadDetail({ email, onClose, onReplySuccess, replyOpen
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [localReply, setLocalReply] = useState(false);
+  const [showForward, setShowForward] = useState(false);
 
   const showReply = replyOpen ?? localReply;
   const setShowReply = (v: boolean) => {
@@ -155,7 +157,16 @@ export default function ThreadDetail({ email, onClose, onReplySuccess, replyOpen
           <span className="text-sm text-gray-500 shrink-0">{threadEmails.length}件</span>
         )}
         <button
-          onClick={() => setShowReply(!showReply)}
+          onClick={() => { setShowForward(!showForward); setShowReply(false); }}
+          className={`flex items-center gap-2 px-4 py-2 text-sm rounded-lg border transition-colors ${showForward ? "bg-gray-100 text-gray-800 border-gray-300" : "text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          転送
+        </button>
+        <button
+          onClick={() => { setShowReply(!showReply); setShowForward(false); }}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -200,6 +211,18 @@ export default function ThreadDetail({ email, onClose, onReplySuccess, replyOpen
           onClose={() => setShowReply(false)}
           onSent={() => {
             setShowReply(false);
+            onReplySuccess();
+          }}
+        />
+      )}
+
+      {/* Forward Composer */}
+      {showForward && (
+        <ForwardComposer
+          email={latestEmail}
+          onClose={() => setShowForward(false)}
+          onSent={() => {
+            setShowForward(false);
             onReplySuccess();
           }}
         />

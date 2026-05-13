@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { sendReply as gmailSendReply } from "@/lib/gmail";
 
 export async function POST(request: NextRequest) {
-  const { emailId, replyBody } = await request.json();
+  const { emailId, replyBody, cc, bcc } = await request.json();
 
   const email = await prisma.email.findUnique({ where: { id: emailId } });
   if (!email) return NextResponse.json({ error: "Email not found" }, { status: 404 });
@@ -13,7 +13,8 @@ export async function POST(request: NextRequest) {
     await gmailSendReply(
       email.accountId,
       { id: email.id, threadId: email.threadId, from: email.from, subject: email.subject },
-      replyBody
+      replyBody,
+      { cc, bcc }
     );
 
     await recordReply({

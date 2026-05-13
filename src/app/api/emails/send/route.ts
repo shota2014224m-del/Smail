@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { google } from "googleapis";
-import { getAuthenticatedClient } from "@/lib/gmail";
+import { sendEmail } from "@/lib/gmail";
 import { prisma } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
-  const { to, subject, body } = await request.json();
+  const { to, subject, body, cc, bcc } = await request.json();
 
   if (!to || !subject || !body) {
     return NextResponse.json({ error: "to, subject, body は必須です" }, { status: 400 });
@@ -16,25 +15,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const auth = await getAuthenticatedClient(activeAccount.id);
-    const gmail = google.gmail({ version: "v1", auth });
-
-    const lines = [
-      `From: ${activeAccount.email}`,
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      `MIME-Version: 1.0`,
-      `Content-Type: text/plain; charset=UTF-8`,
-      ``,
-      body,
-    ];
-    const raw = Buffer.from(lines.join("\r\n")).toString("base64url");
-
-    await gmail.users.messages.send({
-      userId: "me",
-      requestBody: { raw },
-    });
-
+    await sendEmail(activeAccount.id, { to, subject, body, cc, bcc });
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     console.error("Send email error:", err);

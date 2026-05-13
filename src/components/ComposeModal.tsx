@@ -26,10 +26,14 @@ const TONE_INSTRUCTIONS: Record<Tone, string> = {
 
 export default function ComposeModal({ onClose, onSent }: Props) {
   const [to, setTo] = useState("");
+  const [cc, setCc] = useState("");
+  const [bcc, setBcc] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [instruction, setInstruction] = useState("");
   const [tone, setTone] = useState<Tone>("business");
+  const [showCc, setShowCc] = useState(false);
+  const [showBcc, setShowBcc] = useState(false);
   const [showAI, setShowAI] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
@@ -83,7 +87,13 @@ export default function ComposeModal({ onClose, onSent }: Props) {
       const res = await fetch("/api/emails/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to, subject, body }),
+        body: JSON.stringify({
+          to,
+          subject,
+          body,
+          cc: cc.trim() || undefined,
+          bcc: bcc.trim() || undefined,
+        }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -133,7 +143,43 @@ export default function ComposeModal({ onClose, onSent }: Props) {
               type="email"
               className="flex-1 text-sm text-gray-900 placeholder-gray-400 bg-transparent focus:outline-none"
             />
+            <div className="flex items-center gap-1.5 ml-2">
+              <button
+                onClick={() => setShowCc(!showCc)}
+                className={`text-xs px-2 py-0.5 rounded border transition-colors ${showCc ? "bg-blue-50 text-blue-600 border-blue-200" : "text-gray-400 border-gray-200 hover:bg-gray-50"}`}
+              >
+                CC
+              </button>
+              <button
+                onClick={() => setShowBcc(!showBcc)}
+                className={`text-xs px-2 py-0.5 rounded border transition-colors ${showBcc ? "bg-blue-50 text-blue-600 border-blue-200" : "text-gray-400 border-gray-200 hover:bg-gray-50"}`}
+              >
+                BCC
+              </button>
+            </div>
           </div>
+          {showCc && (
+            <div className="flex items-center px-5 py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-400 w-10 shrink-0">CC</span>
+              <input
+                value={cc}
+                onChange={(e) => setCc(e.target.value)}
+                placeholder="CCメールアドレス（複数の場合はカンマ区切り）"
+                className="flex-1 text-sm text-gray-900 placeholder-gray-400 bg-transparent focus:outline-none"
+              />
+            </div>
+          )}
+          {showBcc && (
+            <div className="flex items-center px-5 py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-400 w-10 shrink-0">BCC</span>
+              <input
+                value={bcc}
+                onChange={(e) => setBcc(e.target.value)}
+                placeholder="BCCメールアドレス（複数の場合はカンマ区切り）"
+                className="flex-1 text-sm text-gray-900 placeholder-gray-400 bg-transparent focus:outline-none"
+              />
+            </div>
+          )}
           <div className="flex items-center px-5 py-2">
             <span className="text-sm text-gray-400 w-10 shrink-0">件名</span>
             <input

@@ -179,7 +179,8 @@ function extractBody(payload: any): { text: string; html: string } {
 export async function sendReply(
   accountId: string,
   originalEmail: { id: string; threadId: string; from: string; subject: string },
-  replyBody: string
+  replyBody: string,
+  options?: { cc?: string; bcc?: string }
 ) {
   const auth = await getAuthenticatedClient(accountId);
   const gmail = google.gmail({ version: "v1", auth });
@@ -198,6 +199,8 @@ export async function sendReply(
     body: replyBody,
     threadId: originalEmail.threadId,
     inReplyTo: originalEmail.id,
+    cc: options?.cc,
+    bcc: options?.bcc,
   });
 
   await gmail.users.messages.send({
@@ -209,11 +212,31 @@ export async function sendReply(
   });
 }
 
+export async function sendEmail(
+  accountId: string,
+  { to, subject, body, cc, bcc }: { to: string; subject: string; body: string; cc?: string; bcc?: string }
+) {
+  const auth = await getAuthenticatedClient(accountId);
+  const gmail = google.gmail({ version: "v1", auth });
+
+  const account = await prisma.account.findUnique({ where: { id: accountId } });
+  const from = account?.email ?? "";
+
+  const raw = createRawEmail({ from, to, subject, body, cc, bcc });
+
+  await gmail.users.messages.send({
+    userId: "me",
+    requestBody: { raw },
+  });
+}
+
 function createRawEmail({
   from,
   to,
   subject,
   body,
+  cc,
+  bcc,
   threadId,
   inReplyTo,
 }: {
@@ -221,15 +244,18 @@ function createRawEmail({
   to: string;
   subject: string;
   body: string;
-  threadId: string;
-  inReplyTo: string;
+  cc?: string;
+  bcc?: string;
+  threadId?: string;
+  inReplyTo?: string;
 }) {
   const lines = [
     `From: ${from}`,
     `To: ${to}`,
+    ...(cc ? [`Cc: ${cc}`] : []),
+    ...(bcc ? [`Bcc: ${bcc}`] : []),
     `Subject: ${subject}`,
-    `In-Reply-To: <${inReplyTo}>`,
-    `References: <${inReplyTo}>`,
+    ...(inReplyTo ? [`In-Reply-To: <${inReplyTo}>`, `References: <${inReplyTo}>`] : []),
     `MIME-Version: 1.0`,
     `Content-Type: text/plain; charset=UTF-8`,
     ``,

@@ -30,6 +30,10 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
   const [replyBody, setReplyBody] = useState("");
   const [instruction, setInstruction] = useState("");
   const [tone, setTone] = useState<Tone>("business");
+  const [cc, setCc] = useState("");
+  const [bcc, setBcc] = useState("");
+  const [showCc, setShowCc] = useState(false);
+  const [showBcc, setShowBcc] = useState(false);
   const [showAI, setShowAI] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
@@ -68,7 +72,12 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
       const res = await fetch("/api/reply/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emailId: email.id, replyBody }),
+        body: JSON.stringify({
+          emailId: email.id,
+          replyBody,
+          cc: cc.trim() || undefined,
+          bcc: bcc.trim() || undefined,
+        }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -96,17 +105,53 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
 
   return (
     <div className="border-t-2 border-gray-200 bg-white flex flex-col">
-      {/* To + Close */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
-        <span className="text-sm text-gray-700">
-          <span className="text-gray-400 mr-1">To:</span>
-          <span className="font-medium">{email.from}</span>
-        </span>
-        <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-700 rounded">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+      {/* To + CC/BCC toggles + Close */}
+      <div className="border-b border-gray-100">
+        <div className="flex items-center px-4 py-2">
+          <span className="text-xs text-gray-400 w-10 shrink-0">To</span>
+          <span className="flex-1 text-sm text-gray-900 font-medium">{email.from}</span>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setShowCc(!showCc)}
+              className={`text-xs px-2 py-0.5 rounded border transition-colors ${showCc ? "bg-blue-50 text-blue-600 border-blue-200" : "text-gray-400 border-gray-200 hover:bg-gray-50"}`}
+            >
+              CC
+            </button>
+            <button
+              onClick={() => setShowBcc(!showBcc)}
+              className={`text-xs px-2 py-0.5 rounded border transition-colors ${showBcc ? "bg-blue-50 text-blue-600 border-blue-200" : "text-gray-400 border-gray-200 hover:bg-gray-50"}`}
+            >
+              BCC
+            </button>
+            <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-700 rounded ml-1">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        {showCc && (
+          <div className="flex items-center px-4 py-2 border-t border-gray-100">
+            <span className="text-xs text-gray-400 w-10 shrink-0">CC</span>
+            <input
+              value={cc}
+              onChange={(e) => setCc(e.target.value)}
+              placeholder="CCメールアドレス（複数の場合はカンマ区切り）"
+              className="flex-1 text-sm text-gray-900 placeholder-gray-400 bg-transparent focus:outline-none"
+            />
+          </div>
+        )}
+        {showBcc && (
+          <div className="flex items-center px-4 py-2 border-t border-gray-100">
+            <span className="text-xs text-gray-400 w-10 shrink-0">BCC</span>
+            <input
+              value={bcc}
+              onChange={(e) => setBcc(e.target.value)}
+              placeholder="BCCメールアドレス（複数の場合はカンマ区切り）"
+              className="flex-1 text-sm text-gray-900 placeholder-gray-400 bg-transparent focus:outline-none"
+            />
+          </div>
+        )}
       </div>
 
       {/* AI パネル */}
