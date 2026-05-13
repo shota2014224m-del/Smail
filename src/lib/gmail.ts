@@ -94,6 +94,33 @@ export async function fetchEmails(accountId: string, maxResults = 50) {
   return emails;
 }
 
+export async function fetchEmailsByLabel(accountId: string, labelId: string, maxResults = 50) {
+  const auth = await getAuthenticatedClient(accountId);
+  const gmail = google.gmail({ version: "v1", auth });
+
+  const listRes = await gmail.users.messages.list({
+    userId: "me",
+    maxResults,
+    labelIds: [labelId],
+  });
+
+  const messages = listRes.data.messages ?? [];
+  const emails = [];
+
+  for (const msg of messages.slice(0, 20)) {
+    if (!msg.id) continue;
+    const existing = await prisma.email.findUnique({ where: { id: msg.id } });
+    if (existing) { emails.push(existing); continue; }
+    try {
+      const detail = await gmail.users.messages.get({ userId: "me", id: msg.id, format: "full" });
+      const parsed = parseGmailMessage(detail.data, accountId);
+      const saved = await prisma.email.upsert({ where: { id: parsed.id }, create: parsed, update: parsed });
+      emails.push(saved);
+    } catch { /* skip */ }
+  }
+  return emails;
+}
+
 function parseGmailMessage(msg: any, accountId: string) {
   const headers = msg.payload?.headers ?? [];
   const getHeader = (name: string) =>
