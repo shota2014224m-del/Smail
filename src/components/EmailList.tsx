@@ -54,15 +54,35 @@ export default function EmailList({ emails, selectedId, onSelect, loading }: Pro
     );
   }
 
+  // Group by threadId, keep latest email per thread
+  const threadMap = new Map<string, { latest: EmailMessage; count: number; hasUnread: boolean }>();
+  for (const email of emails) {
+    const key = email.threadId ?? email.id;
+    const existing = threadMap.get(key);
+    if (!existing) {
+      threadMap.set(key, { latest: email, count: 1, hasUnread: !email.isRead });
+    } else {
+      const isNewer = new Date(email.date) > new Date(existing.latest.date);
+      threadMap.set(key, {
+        latest: isNewer ? email : existing.latest,
+        count: existing.count + 1,
+        hasUnread: existing.hasUnread || !email.isRead,
+      });
+    }
+  }
+  const threads = Array.from(threadMap.values()).sort(
+    (a, b) => new Date(b.latest.date).getTime() - new Date(a.latest.date).getTime()
+  );
+
   return (
     <div className="overflow-y-auto h-full">
-      {emails.map((email) => (
+      {threads.map(({ latest: email, count, hasUnread }) => (
         <div
-          key={email.id}
+          key={email.threadId ?? email.id}
           onClick={() => onSelect(email)}
           className={`flex items-start gap-3 px-4 py-3 cursor-pointer border-b border-gray-100 hover:bg-gray-50 transition-colors ${
             selectedId === email.id ? "bg-blue-50 border-l-4 border-l-blue-500" : ""
-          } ${!email.isRead ? "bg-white" : "bg-gray-50"}`}
+          } ${hasUnread ? "bg-white" : "bg-gray-50"}`}
         >
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0 mt-0.5"
@@ -72,17 +92,20 @@ export default function EmailList({ emails, selectedId, onSelect, loading }: Pro
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
-              <span className={`text-sm truncate ${!email.isRead ? "font-semibold text-gray-900" : "text-gray-700"}`}>
+              <span className={`text-sm truncate ${hasUnread ? "font-semibold text-gray-900" : "text-gray-700"}`}>
                 {email.fromName ?? email.from}
+                {count > 1 && (
+                  <span className="ml-1.5 text-xs text-gray-500 font-normal">{count}</span>
+                )}
               </span>
               <span className="text-xs text-gray-600 shrink-0">{formatDate(email.date)}</span>
             </div>
-            <p className={`text-sm truncate ${!email.isRead ? "font-medium text-gray-900" : "text-gray-700"}`}>
+            <p className={`text-sm truncate ${hasUnread ? "font-medium text-gray-900" : "text-gray-700"}`}>
               {email.subject}
             </p>
             <p className="text-xs text-gray-600 truncate">{email.snippet ?? email.body}</p>
           </div>
-          {!email.isRead && (
+          {hasUnread && (
             <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-2" />
           )}
         </div>

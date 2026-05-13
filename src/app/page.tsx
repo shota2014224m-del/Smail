@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import EmailList from "@/components/EmailList";
-import EmailDetail from "@/components/EmailDetail";
+import ThreadDetail from "@/components/ThreadDetail";
 import AccountSwitcher from "@/components/AccountSwitcher";
 import SettingsModal from "@/components/SettingsModal";
 import ComposeModal from "@/components/ComposeModal";
@@ -428,7 +428,7 @@ export default function Home() {
               {/* Email detail */}
               <div className={`flex-1 min-w-0 ${selectedEmail ? "flex" : "hidden lg:flex"} flex-col bg-white`}>
                 {selectedEmail ? (
-                  <EmailDetail
+                  <ThreadDetail
                     email={selectedEmail}
                     onClose={() => setSelectedEmail(null)}
                     replyOpen={replyOpen}
