@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { AccountInfo } from "@/types";
 
 interface Props {
@@ -11,10 +11,21 @@ interface Props {
 
 export default function AccountSwitcher({ accounts, onSwitch, onAddAccount, onDelete }: Props) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const active = accounts.find((a) => a.isActive);
 
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
-    <div className="relative">
+    <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 w-full"
