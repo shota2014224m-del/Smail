@@ -6,6 +6,8 @@ interface Props {
   selectedId?: string;
   onSelect: (email: EmailMessage) => void;
   loading: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (threadId: string) => void;
 }
 
 function formatDate(dateStr: string) {
@@ -23,7 +25,7 @@ function formatDate(dateStr: string) {
   return date.toLocaleDateString("ja-JP", { month: "short", day: "numeric" });
 }
 
-export default function EmailList({ emails, selectedId, onSelect, loading }: Props) {
+export default function EmailList({ emails, selectedId, onSelect, loading, selectedIds, onToggleSelect }: Props) {
   if (loading) {
     return (
       <div className="flex flex-col gap-1 p-2">
@@ -76,21 +78,34 @@ export default function EmailList({ emails, selectedId, onSelect, loading }: Pro
 
   return (
     <div className="overflow-y-auto h-full">
-      {threads.map(({ latest: email, count, hasUnread }) => (
+      {threads.map(({ latest: email, count, hasUnread }) => {
+        const threadKey = email.threadId ?? email.id;
+        const isChecked = selectedIds?.has(threadKey) ?? false;
+        return (
         <div
-          key={email.threadId ?? email.id}
-          onClick={() => onSelect(email)}
-          className={`flex items-start gap-3 px-4 py-3 cursor-pointer border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+          key={threadKey}
+          className={`flex items-start gap-2 px-3 py-3 cursor-pointer border-b border-gray-100 hover:bg-gray-50 transition-colors group ${
             selectedId === email.id ? "bg-blue-50 border-l-4 border-l-blue-500" : ""
-          } ${hasUnread ? "bg-white" : "bg-gray-50"}`}
+          } ${isChecked ? "bg-blue-50" : hasUnread ? "bg-white" : "bg-gray-50"}`}
         >
+          {/* Checkbox */}
+          <div className="flex items-center pt-1 shrink-0">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={(e) => { e.stopPropagation(); onToggleSelect?.(threadKey); }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer opacity-0 group-hover:opacity-100 checked:opacity-100 transition-opacity"
+            />
+          </div>
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0 mt-0.5"
             style={{ backgroundColor: stringToColor(email.fromName ?? email.from) }}
+            onClick={() => onSelect(email)}
           >
             {(email.fromName ?? email.from)[0]?.toUpperCase() ?? "?"}
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0" onClick={() => onSelect(email)}>
             <div className="flex items-center justify-between gap-2">
               <span className={`text-sm truncate ${hasUnread ? "font-semibold text-gray-900" : "text-gray-700"}`}>
                 {email.fromName ?? email.from}
@@ -109,7 +124,8 @@ export default function EmailList({ emails, selectedId, onSelect, loading }: Pro
             <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-2" />
           )}
         </div>
-      ))}
+      );
+      })}
     </div>
   );
 }

@@ -4,12 +4,30 @@ import { EmailMessage } from "@/types";
 import ReplyComposer from "./ReplyComposer";
 import ForwardComposer from "./ForwardComposer";
 
+interface Attachment {
+  id: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+}
+
+interface ThreadEmail extends EmailMessage {
+  attachments?: Attachment[];
+}
+
+interface GmailLabel {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
 interface Props {
   email: EmailMessage;
   onClose: () => void;
   onReplySuccess: () => void;
   replyOpen?: boolean;
   onReplyOpenChange?: (open: boolean) => void;
+  availableLabels?: GmailLabel[];
 }
 
 function stringToColor(str: string): string {
@@ -42,7 +60,30 @@ function formatDate(dateStr: string) {
   });
 }
 
-function EmailCard({ msg, expanded, onToggle }: { msg: EmailMessage; expanded: boolean; onToggle: () => void }) {
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function AttachmentChip({ att, messageId }: { att: Attachment; messageId: string }) {
+  const url = `/api/emails/attachment?messageId=${encodeURIComponent(messageId)}&attachmentId=${encodeURIComponent(att.id)}&filename=${encodeURIComponent(att.filename)}`;
+  return (
+    <a
+      href={url}
+      download={att.filename}
+      className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs text-gray-700 transition-colors"
+    >
+      <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+      </svg>
+      <span className="truncate max-w-[160px]">{att.filename}</span>
+      <span className="text-gray-400 shrink-0">({formatBytes(att.size)})</span>
+    </a>
+  );
+}
+
+function EmailCard({ msg, expanded, onToggle }: { msg: ThreadEmail; expanded: boolean; onToggle: () => void }) {
   return (
     <div className="border border-gray-200 rounded-xl overflow-hidden">
       <button
@@ -90,18 +131,28 @@ function EmailCard({ msg, expanded, onToggle }: { msg: EmailMessage; expanded: b
               {msg.body}
             </pre>
           )}
+          {msg.attachments && msg.attachments.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2 border-t border-gray-100 pt-3">
+              {msg.attachments.map((att) => (
+                <AttachmentChip key={att.id} att={att} messageId={msg.id} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-export default function ThreadDetail({ email, onClose, onReplySuccess, replyOpen, onReplyOpenChange }: Props) {
-  const [threadEmails, setThreadEmails] = useState<EmailMessage[]>([]);
+export default function ThreadDetail({ email, onClose, onReplySuccess, replyOpen, onReplyOpenChange, availableLabels = [] }: Props) {
+  const [threadEmails, setThreadEmails] = useState<ThreadEmail[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [localReply, setLocalReply] = useState(false);
   const [showForward, setShowForward] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [showLabelPicker, setShowLabelPicker] = useState(false);
+  const [labelLoading, setLabelLoading] = useState(false);
 
   const showReply = replyOpen ?? localReply;
   const setShowReply = (v: boolean) => {
@@ -139,6 +190,42 @@ export default function ThreadDetail({ email, onClose, onReplySuccess, replyOpen
   }
 
   const latestEmail = threadEmails[threadEmails.length - 1] ?? email;
+  const allIds = threadEmails.map((m) => m.id);
+
+  async function handleLabelToggle(labelId: string) {
+    const currentLabels: string[] = JSON.parse(JSON.stringify(email.labels));
+    const hasLabel = currentLabels.includes(labelId);
+    setLabelLoading(true);
+    try {
+      await fetch("/api/emails/label", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          emailIds: allIds.length ? allIds : [email.id],
+          labelId,
+          action: hasLabel ? "remove" : "add",
+        }),
+      });
+      onReplySuccess();
+    } finally {
+      setLabelLoading(false);
+      setShowLabelPicker(false);
+    }
+  }
+
+  async function handleAction(action: "archive" | "trash" | "star" | "unstar" | "markRead" | "markUnread") {
+    setActionLoading(true);
+    try {
+      await fetch("/api/emails/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailIds: allIds.length ? allIds : [email.id], action }),
+      });
+      onReplySuccess();
+    } finally {
+      setActionLoading(false);
+    }
+  }
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -156,6 +243,73 @@ export default function ThreadDetail({ email, onClose, onReplySuccess, replyOpen
         {threadEmails.length > 1 && (
           <span className="text-sm text-gray-500 shrink-0">{threadEmails.length}件</span>
         )}
+        {/* Action buttons */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => handleAction(email.isStarred ? "unstar" : "star")}
+            disabled={actionLoading}
+            title={email.isStarred ? "スターを外す" : "スターを付ける"}
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-yellow-500 disabled:opacity-40"
+          >
+            <svg className={`w-4 h-4 ${email.isStarred ? "fill-yellow-400 text-yellow-400" : ""}`} fill={email.isStarred ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            </svg>
+          </button>
+          <button
+            onClick={() => handleAction("archive")}
+            disabled={actionLoading}
+            title="アーカイブ"
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 disabled:opacity-40"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+            </svg>
+          </button>
+          <button
+            onClick={() => handleAction("trash")}
+            disabled={actionLoading}
+            title="ゴミ箱へ移動"
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-red-500 disabled:opacity-40"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+          {availableLabels.length > 0 && (
+            <div className="relative">
+              <button
+                onClick={() => setShowLabelPicker(!showLabelPicker)}
+                title="ラベル付け"
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+              </button>
+              {showLabelPicker && (
+                <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 max-h-64 overflow-y-auto">
+                  <p className="px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">ラベル付け</p>
+                  {availableLabels.map((label) => {
+                    const has = email.labels.includes(label.id);
+                    return (
+                      <button
+                        key={label.id}
+                        onClick={() => handleLabelToggle(label.id)}
+                        disabled={labelLoading}
+                        className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        <span className="w-3 h-3 rounded-sm border-2 flex items-center justify-center shrink-0" style={{ borderColor: label.color ?? "#9CA3AF", backgroundColor: has ? label.color ?? "#9CA3AF" : "transparent" }}>
+                          {has && <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>}
+                        </span>
+                        <span className="truncate">{label.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <button
           onClick={() => { setShowForward(!showForward); setShowReply(false); }}
           className={`flex items-center gap-2 px-4 py-2 text-sm rounded-lg border transition-colors ${showForward ? "bg-gray-100 text-gray-800 border-gray-300" : "text-gray-600 border-gray-200 hover:bg-gray-50"}`}

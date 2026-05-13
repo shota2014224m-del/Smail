@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 interface Props {
   onClose: () => void;
@@ -39,6 +39,28 @@ export default function ComposeModal({ onClose, onSent }: Props) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const DRAFT_KEY = "draft_compose";
+
+  // Restore draft on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(DRAFT_KEY);
+    if (saved) {
+      try {
+        const d = JSON.parse(saved);
+        if (d.to) setTo(d.to);
+        if (d.subject) setSubject(d.subject);
+        if (d.body) setBody(d.body);
+        if (d.cc) { setCc(d.cc); setShowCc(true); }
+        if (d.bcc) { setBcc(d.bcc); setShowBcc(true); }
+      } catch { /* ignore */ }
+    }
+  }, []);
+
+  // Auto-save draft
+  useEffect(() => {
+    if (!to && !subject && !body) { localStorage.removeItem(DRAFT_KEY); return; }
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ to, subject, body, cc, bcc }));
+  }, [to, subject, body, cc, bcc]);
 
   const handleGenerate = useCallback(async () => {
     if (!subject && !instruction) {
@@ -97,13 +119,14 @@ export default function ComposeModal({ onClose, onSent }: Props) {
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
+      localStorage.removeItem(DRAFT_KEY);
       onSent();
     } catch (err: any) {
       setError(err.message ?? "送信に失敗しました");
     } finally {
       setSending(false);
     }
-  }, [to, subject, body, onSent]);
+  }, [to, subject, body, cc, bcc, onSent]);
 
   function handleBodyKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -306,12 +329,17 @@ export default function ComposeModal({ onClose, onSent }: Props) {
             </button>
           </div>
 
-          <button
-            onClick={onClose}
-            className="text-sm text-gray-500 hover:text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-100"
-          >
-            キャンセル
-          </button>
+          <div className="flex items-center gap-2">
+            {(to || subject || body) && (
+              <span className="text-xs text-gray-400">下書き保存済み</span>
+            )}
+            <button
+              onClick={onClose}
+              className="text-sm text-gray-500 hover:text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-100"
+            >
+              キャンセル
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -3,6 +3,13 @@ import { prisma } from "@/lib/db";
 import { google } from "googleapis";
 import { getAuthenticatedClient } from "@/lib/gmail";
 
+interface Attachment {
+  id: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ threadId: string }> }
@@ -12,13 +19,14 @@ export async function GET(
   const activeAccount = await prisma.account.findFirst({ where: { isActive: true } });
   if (!activeAccount) return NextResponse.json({ emails: [] });
 
-  // まずDBから取得
   let emails = await prisma.email.findMany({
     where: { accountId: activeAccount.id, threadId },
     orderBy: { date: "asc" },
   });
 
-  // DBにスレッドの複数メールがない場合はGmailから取得
+  // Map of emailId → attachments (populated when we have full payload from Gmail)
+  const attachmentMap: Record<string, Attachment[]> = {};
+
   if (emails.length <= 1) {
     try {
       const auth = await getAuthenticatedClient(activeAccount.id);
@@ -38,6 +46,8 @@ export async function GET(
         const fromRaw = getH("From");
         const fromMatch = fromRaw.match(/^(?:"?([^"<]*)"?\s*)?<?([^>]+)>?$/);
         const body = extractBody(msg.payload);
+        const attachments = extractAttachments(msg.payload);
+        if (attachments.length) attachmentMap[msg.id] = attachments;
 
         const data = {
           id: msg.id,
@@ -77,6 +87,7 @@ export async function GET(
       ...e,
       labels: JSON.parse(e.labels),
       date: e.date.toISOString(),
+      attachments: attachmentMap[e.id] ?? [],
     })),
   });
 }
@@ -100,4 +111,20 @@ function extractBody(payload: any): { text: string; html: string } {
     text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   }
   return { text, html };
+}
+
+function extractAttachments(payload: any, result: Attachment[] = []): Attachment[] {
+  if (!payload) return result;
+  if (payload.filename && payload.body?.attachmentId) {
+    result.push({
+      id: payload.body.attachmentId,
+      filename: payload.filename,
+      mimeType: payload.mimeType ?? "application/octet-stream",
+      size: payload.body.size ?? 0,
+    });
+  }
+  for (const part of payload.parts ?? []) {
+    extractAttachments(part, result);
+  }
+  return result;
 }

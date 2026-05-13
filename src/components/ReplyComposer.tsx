@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { EmailMessage } from "@/types";
 
 interface Props {
@@ -41,6 +41,22 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
   const [error, setError] = useState("");
   const instructionRef = useRef<HTMLTextAreaElement>(null);
   const replyRef = useRef<HTMLTextAreaElement>(null);
+  const draftKey = `draft_reply_${email.id}`;
+
+  // Restore draft on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(draftKey);
+    if (saved) setReplyBody(saved);
+  }, [draftKey]);
+
+  // Auto-save draft on body change
+  useEffect(() => {
+    if (replyBody) {
+      localStorage.setItem(draftKey, replyBody);
+    } else {
+      localStorage.removeItem(draftKey);
+    }
+  }, [replyBody, draftKey]);
 
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
@@ -81,13 +97,14 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
+      localStorage.removeItem(draftKey);
       onSent();
     } catch (err: any) {
       setError(err.message ?? "送信に失敗しました");
     } finally {
       setSending(false);
     }
-  }, [email.id, replyBody, onSent]);
+  }, [email.id, replyBody, cc, bcc, onSent, draftKey]);
 
   function handleInstructionKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -293,12 +310,17 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
           </button>
         </div>
 
-        <button
-          onClick={onClose}
-          className="text-sm text-gray-500 hover:text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-100"
-        >
-          キャンセル
-        </button>
+        <div className="flex items-center gap-2">
+          {replyBody && (
+            <span className="text-xs text-gray-400">下書き保存済み</span>
+          )}
+          <button
+            onClick={onClose}
+            className="text-sm text-gray-500 hover:text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-100"
+          >
+            キャンセル
+          </button>
+        </div>
       </div>
     </div>
   );

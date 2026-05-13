@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import EmailList from "@/components/EmailList";
 import ThreadDetail from "@/components/ThreadDetail";
 import AccountSwitcher from "@/components/AccountSwitcher";
@@ -8,6 +8,15 @@ import ComposeModal from "@/components/ComposeModal";
 import { EmailMessage, AccountInfo } from "@/types";
 
 type NavItem = "inbox" | "sent" | "starred" | "trash" | "spam" | "all" | `label:${string}`;
+type CategoryTab = "all" | "primary" | "social" | "promotions" | "updates";
+
+const CATEGORY_TABS: { id: CategoryTab; label: string; labelId: string | null }[] = [
+  { id: "all", label: "すべて", labelId: null },
+  { id: "primary", label: "メイン", labelId: "CATEGORY_PERSONAL" },
+  { id: "social", label: "ソーシャル", labelId: "CATEGORY_SOCIAL" },
+  { id: "promotions", label: "プロモーション", labelId: "CATEGORY_PROMOTIONS" },
+  { id: "updates", label: "最新情報", labelId: "CATEGORY_UPDATES" },
+];
 
 interface GmailLabel {
   id: string;
@@ -37,7 +46,13 @@ export default function Home() {
   const [showCompose, setShowCompose] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
+  const [categoryTab, setCategoryTab] = useState<CategoryTab>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedThreadIds, setSelectedThreadIds] = useState<Set<string>>(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState<EmailMessage[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [error, setError] = useState("");
 
   const loadAccounts = useCallback(async () => {
@@ -123,12 +138,31 @@ export default function Home() {
     window.location.href = "/api/auth";
   }
 
-  const filteredEmails = emails.filter((email) => {
-    const matchesSearch =
-      !searchQuery ||
-      email.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      email.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      email.body.toLowerCase().includes(searchQuery.toLowerCase());
+  // Server-side search with 400ms debounce
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (!searchQuery.trim()) {
+      setSearchResults(null);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/emails/search?q=${encodeURIComponent(searchQuery)}`);
+        const data = await res.json();
+        setSearchResults(data.emails ?? []);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 400);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [searchQuery]);
+
+  const filteredEmails = (searchResults ?? emails).filter((email) => {
+    if (searchResults) return true; // server already filtered
 
     let matchesNav = true;
     if (navItem === "inbox") matchesNav = email.labels.includes("INBOX");
@@ -140,10 +174,46 @@ export default function Home() {
       matchesNav = email.labels.includes(navItem.slice(6));
     }
 
-    return matchesSearch && matchesNav;
+    // Category tab filter (only applies to inbox)
+    if (navItem === "inbox" && categoryTab !== "all") {
+      const tab = CATEGORY_TABS.find((t) => t.id === categoryTab);
+      if (tab?.labelId) matchesNav = matchesNav && email.labels.includes(tab.labelId);
+    }
+
+    return matchesNav;
   });
 
   const hasActiveAccount = accounts.some((a) => a.isActive);
+
+  function toggleThreadSelect(threadId: string) {
+    setSelectedThreadIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(threadId)) next.delete(threadId);
+      else next.add(threadId);
+      return next;
+    });
+  }
+
+  async function handleBulkAction(action: "archive" | "trash" | "markRead" | "markUnread") {
+    if (!selectedThreadIds.size) return;
+    // Collect actual email IDs for each selected thread
+    const emailIds = filteredEmails
+      .filter((e) => selectedThreadIds.has(e.threadId ?? e.id))
+      .map((e) => e.id);
+    if (!emailIds.length) return;
+    setBulkActionLoading(true);
+    try {
+      await fetch("/api/emails/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailIds, action }),
+      });
+      setSelectedThreadIds(new Set());
+      loadEmails(true);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }
   const unreadCount = emails.filter((e) => !e.isRead && e.labels.includes("INBOX")).length;
 
   useEffect(() => {
@@ -328,15 +398,32 @@ export default function Home() {
         {/* Top bar */}
         <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4">
           <div className="flex-1 relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            {searching ? (
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            )}
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="メールを検索..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 text-gray-900 placeholder-gray-400"
+              placeholder="メールをGmail検索..."
+              className="w-full pl-10 pr-8 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 text-gray-900 placeholder-gray-400"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
           <button
             onClick={() => loadEmails(true)}
@@ -406,22 +493,75 @@ export default function Home() {
             <>
               {/* Email list */}
               <div className={`w-96 border-r border-gray-200 flex flex-col shrink-0 bg-white ${selectedEmail ? "hidden lg:flex" : "flex"}`}>
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-900 text-sm">{getNavLabel()}</h3>
+                <div className="border-b border-gray-100">
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <h3 className="font-semibold text-gray-900 text-sm">
+                      {searchResults ? `検索: ${searchQuery}` : getNavLabel()}
+                    </h3>
                     <span className="text-xs text-gray-500">{filteredEmails.length}件</span>
                   </div>
+                  {navItem === "inbox" && !searchResults && (
+                    <div className="flex border-t border-gray-100 overflow-x-auto">
+                      {CATEGORY_TABS.map((tab) => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setCategoryTab(tab.id)}
+                          className={`px-3 py-2 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
+                            categoryTab === tab.id
+                              ? "border-blue-500 text-blue-600"
+                              : "border-transparent text-gray-500 hover:text-gray-700"
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {error && (
                   <div className="m-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs">
                     {error}
                   </div>
                 )}
+                {selectedThreadIds.size > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border-b border-blue-100">
+                    <span className="text-xs text-blue-700 font-medium">{selectedThreadIds.size}件選択中</span>
+                    <button
+                      onClick={() => handleBulkAction("markRead")}
+                      disabled={bulkActionLoading}
+                      className="text-xs px-2 py-1 rounded bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      既読
+                    </button>
+                    <button
+                      onClick={() => handleBulkAction("archive")}
+                      disabled={bulkActionLoading}
+                      className="text-xs px-2 py-1 rounded bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      アーカイブ
+                    </button>
+                    <button
+                      onClick={() => handleBulkAction("trash")}
+                      disabled={bulkActionLoading}
+                      className="text-xs px-2 py-1 rounded bg-white border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                    >
+                      ゴミ箱
+                    </button>
+                    <button
+                      onClick={() => setSelectedThreadIds(new Set())}
+                      className="ml-auto text-xs text-gray-400 hover:text-gray-600"
+                    >
+                      解除
+                    </button>
+                  </div>
+                )}
                 <EmailList
                   emails={filteredEmails}
                   selectedId={selectedEmail?.id}
-                  onSelect={setSelectedEmail}
+                  onSelect={(e) => { setSelectedEmail(e); setSelectedThreadIds(new Set()); }}
                   loading={loading}
+                  selectedIds={selectedThreadIds}
+                  onToggleSelect={toggleThreadSelect}
                 />
               </div>
 
@@ -433,6 +573,7 @@ export default function Home() {
                     onClose={() => setSelectedEmail(null)}
                     replyOpen={replyOpen}
                     onReplyOpenChange={setReplyOpen}
+                    availableLabels={labels}
                     onReplySuccess={() => {
                       setReplyOpen(false);
                       setSelectedEmail(null);
