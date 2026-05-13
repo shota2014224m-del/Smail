@@ -189,3 +189,47 @@ export async function updateReplyFeedback(patternId: string, delta: number) {
     data: { feedback: { increment: delta } },
   });
 }
+
+export async function generateNewEmail(params: {
+  accountId: string;
+  to: string;
+  subject: string;
+  userInstruction?: string;
+}): Promise<{ body: string; confidence: number }> {
+  const { accountId, to, subject, userInstruction } = params;
+
+  const settings = await prisma.settings.findUnique({ where: { id: "global" } });
+  const model = settings?.claudeModel ?? "claude-sonnet-4-6";
+  const customSystemPrompt = settings?.systemPrompt ?? "";
+  const obsidianContext = await loadObsidianContext();
+
+  let systemPrompt = `あなたはメール作成アシスタントです。新規メールの本文を作成してください。
+以下のJSON形式で出力してください：
+{"body": "メール本文", "confidence": 0.85}`;
+
+  if (customSystemPrompt) {
+    systemPrompt += `\n\n## 追加指示\n${customSystemPrompt}`;
+  }
+  if (obsidianContext) {
+    systemPrompt += `\n\n## あなたの個人情報（Obsidianノートより）\n${obsidianContext.slice(0, 8000)}`;
+  }
+
+  let userMessage = `以下の条件で新規メールを作成してください。`;
+  if (to) userMessage += `\n宛先: ${to}`;
+  if (subject) userMessage += `\n件名: ${subject}`;
+  if (userInstruction) userMessage += `\n指示: ${userInstruction}`;
+
+  const response = await client.messages.create({
+    model,
+    max_tokens: 2048,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userMessage }],
+  });
+
+  const text = response.content
+    .filter((b) => b.type === "text")
+    .map((b) => (b as Anthropic.TextBlock).text)
+    .join("");
+
+  return parseReplyResponse(text);
+}

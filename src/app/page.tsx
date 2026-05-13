@@ -4,6 +4,7 @@ import EmailList from "@/components/EmailList";
 import EmailDetail from "@/components/EmailDetail";
 import AccountSwitcher from "@/components/AccountSwitcher";
 import SettingsModal from "@/components/SettingsModal";
+import ComposeModal from "@/components/ComposeModal";
 import { EmailMessage, AccountInfo } from "@/types";
 
 type NavItem = "inbox" | "sent" | "starred" | "all";
@@ -16,6 +17,7 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [navItem, setNavItem] = useState<NavItem>("inbox");
   const [showSettings, setShowSettings] = useState(false);
+  const [showCompose, setShowCompose] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState("");
 
@@ -109,8 +111,21 @@ export default function Home() {
           </div>
         </div>
 
+        {/* 作成ボタン */}
+        <div className="px-3 pb-3">
+          <button
+            onClick={() => setShowCompose(true)}
+            className="flex items-center gap-2 w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 shadow-sm"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+            作成
+          </button>
+        </div>
+
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 px-3 py-2 space-y-1">
           {(
             [
               { id: "inbox", label: "受信トレイ", icon: "M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z", badge: unreadCount },
@@ -272,6 +287,15 @@ export default function Home() {
       </main>
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showCompose && (
+        <ComposeModal
+          onClose={() => setShowCompose(false)}
+          onSent={() => {
+            setShowCompose(false);
+            loadEmails(true);
+          }}
+        />
+      )}
     </div>
   );
 }
