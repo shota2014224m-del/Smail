@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useCallback, useEffect } from "react";
+import AttachmentPicker, { FileAttachment } from "./AttachmentPicker";
 
 interface Props {
   onClose: () => void;
@@ -34,6 +35,7 @@ export default function ComposeModal({ onClose, onSent }: Props) {
   const [tone, setTone] = useState<Tone>("business");
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
+  const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [showAI, setShowAI] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
@@ -115,6 +117,7 @@ export default function ComposeModal({ onClose, onSent }: Props) {
           body,
           cc: cc.trim() || undefined,
           bcc: bcc.trim() || undefined,
+          attachments: attachments.length ? attachments.map(({ filename, mimeType, data }) => ({ filename, mimeType, data })) : undefined,
         }),
       });
       const data = await res.json();
@@ -288,6 +291,13 @@ export default function ComposeModal({ onClose, onSent }: Props) {
           />
         </div>
 
+        {/* 添付ファイル */}
+        {attachments.length > 0 && (
+          <div className="px-5 py-2 border-t border-gray-100">
+            <AttachmentPicker attachments={attachments} onChange={setAttachments} />
+          </div>
+        )}
+
         {/* ボトムツールバー */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
           <div className="flex items-center gap-2">
@@ -327,6 +337,7 @@ export default function ComposeModal({ onClose, onSent }: Props) {
               </svg>
               Claude AI
             </button>
+            <AttachmentPicker attachments={attachments} onChange={setAttachments} />
           </div>
 
           <div className="flex items-center gap-2">

@@ -72,3 +72,15 @@ model Settings {
   replyLanguage  String  @default("ja")
   systemPrompt   String  @default("")
 }
+
+model FilterRule {
+  id             String   @id @default(cuid())
+  accountId      String
+  fromContains   String   @default("")
+  subjectContains String  @default("")
+  bodyContains   String   @default("")
+  addLabelId     String   @default("")
+  markRead       Boolean  @default(false)
+  archive        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+}

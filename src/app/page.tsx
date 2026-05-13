@@ -7,7 +7,7 @@ import SettingsModal from "@/components/SettingsModal";
 import ComposeModal from "@/components/ComposeModal";
 import { EmailMessage, AccountInfo } from "@/types";
 
-type NavItem = "inbox" | "sent" | "starred" | "trash" | "spam" | "all" | `label:${string}`;
+type NavItem = "inbox" | "priority" | "sent" | "starred" | "trash" | "spam" | "all" | `label:${string}`;
 type CategoryTab = "all" | "primary" | "social" | "promotions" | "updates";
 
 const CATEGORY_TABS: { id: CategoryTab; label: string; labelId: string | null }[] = [
@@ -27,6 +27,7 @@ interface GmailLabel {
 
 const SYSTEM_NAV = [
   { id: "inbox" as NavItem, label: "受信トレイ", icon: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" },
+  { id: "priority" as NavItem, label: "優先トレイ", icon: "M13 10V3L4 14h7v7l9-11h-7z" },
   { id: "starred" as NavItem, label: "スター付き", icon: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" },
   { id: "sent" as NavItem, label: "送信済み", icon: "M12 19l9 2-9-18-9 18 9-2zm0 0v-8" },
   { id: "all" as NavItem, label: "すべてのメール", icon: "M3 7h18M3 12h18M3 17h18" },
@@ -76,9 +77,9 @@ export default function Home() {
     else setLoading(true);
     setError("");
     try {
-      let url = "/api/emails";
+      let url = currentNav === "priority" ? "/api/emails/priority" : "/api/emails";
       const params = new URLSearchParams();
-      if (refresh) params.set("refresh", "true");
+      if (refresh && currentNav !== "priority") params.set("refresh", "true");
       if (currentNav === "trash") params.set("label", "TRASH");
       else if (currentNav === "spam") params.set("label", "SPAM");
       else if (typeof currentNav === "string" && currentNav.startsWith("label:")) {
@@ -163,6 +164,7 @@ export default function Home() {
 
   const filteredEmails = (searchResults ?? emails).filter((email) => {
     if (searchResults) return true; // server already filtered
+    if (navItem === "priority") return true; // server already ranked/filtered
 
     let matchesNav = true;
     if (navItem === "inbox") matchesNav = email.labels.includes("INBOX");
@@ -261,6 +263,7 @@ export default function Home() {
 
   function getNavLabel() {
     if (navItem === "inbox") return "受信トレイ";
+    if (navItem === "priority") return "優先トレイ";
     if (navItem === "sent") return "送信済み";
     if (navItem === "starred") return "スター付き";
     if (navItem === "trash") return "ゴミ箱";

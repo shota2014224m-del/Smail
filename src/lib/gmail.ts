@@ -180,7 +180,7 @@ export async function sendReply(
   accountId: string,
   originalEmail: { id: string; threadId: string; from: string; subject: string },
   replyBody: string,
-  options?: { cc?: string; bcc?: string }
+  options?: { cc?: string; bcc?: string; attachments?: EmailAttachment[] }
 ) {
   const auth = await getAuthenticatedClient(accountId);
   const gmail = google.gmail({ version: "v1", auth });
@@ -201,6 +201,7 @@ export async function sendReply(
     inReplyTo: originalEmail.id,
     cc: options?.cc,
     bcc: options?.bcc,
+    attachments: options?.attachments,
   });
 
   await gmail.users.messages.send({
@@ -212,9 +213,18 @@ export async function sendReply(
   });
 }
 
+export interface EmailAttachment {
+  filename: string;
+  mimeType: string;
+  data: string; // base64
+}
+
 export async function sendEmail(
   accountId: string,
-  { to, subject, body, cc, bcc }: { to: string; subject: string; body: string; cc?: string; bcc?: string }
+  { to, subject, body, cc, bcc, attachments }: {
+    to: string; subject: string; body: string;
+    cc?: string; bcc?: string; attachments?: EmailAttachment[];
+  }
 ) {
   const auth = await getAuthenticatedClient(accountId);
   const gmail = google.gmail({ version: "v1", auth });
@@ -222,7 +232,7 @@ export async function sendEmail(
   const account = await prisma.account.findUnique({ where: { id: accountId } });
   const from = account?.email ?? "";
 
-  const raw = createRawEmail({ from, to, subject, body, cc, bcc });
+  const raw = createRawEmail({ from, to, subject, body, cc, bcc, attachments });
 
   await gmail.users.messages.send({
     userId: "me",
@@ -231,25 +241,14 @@ export async function sendEmail(
 }
 
 function createRawEmail({
-  from,
-  to,
-  subject,
-  body,
-  cc,
-  bcc,
-  threadId,
-  inReplyTo,
+  from, to, subject, body, cc, bcc, threadId, inReplyTo, attachments,
 }: {
-  from: string;
-  to: string;
-  subject: string;
-  body: string;
-  cc?: string;
-  bcc?: string;
-  threadId?: string;
-  inReplyTo?: string;
+  from: string; to: string; subject: string; body: string;
+  cc?: string; bcc?: string; threadId?: string; inReplyTo?: string;
+  attachments?: EmailAttachment[];
 }) {
-  const lines = [
+  const boundary = `boundary_${Date.now().toString(36)}`;
+  const headers = [
     `From: ${from}`,
     `To: ${to}`,
     ...(cc ? [`Cc: ${cc}`] : []),
@@ -257,9 +256,36 @@ function createRawEmail({
     `Subject: ${subject}`,
     ...(inReplyTo ? [`In-Reply-To: <${inReplyTo}>`, `References: <${inReplyTo}>`] : []),
     `MIME-Version: 1.0`,
+  ];
+
+  if (!attachments?.length) {
+    const lines = [...headers, `Content-Type: text/plain; charset=UTF-8`, ``, body];
+    return Buffer.from(lines.join("\r\n")).toString("base64url");
+  }
+
+  // Multipart/mixed for attachments
+  const parts: string[] = [
+    ...headers,
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    ``,
+    `--${boundary}`,
     `Content-Type: text/plain; charset=UTF-8`,
+    `Content-Transfer-Encoding: 7bit`,
     ``,
     body,
   ];
-  return Buffer.from(lines.join("\r\n")).toString("base64url");
+
+  for (const att of attachments) {
+    parts.push(
+      `--${boundary}`,
+      `Content-Type: ${att.mimeType}`,
+      `Content-Transfer-Encoding: base64`,
+      `Content-Disposition: attachment; filename="${att.filename}"`,
+      ``,
+      att.data.replace(/(.{76})/g, "$1\r\n").trimEnd(),
+    );
+  }
+
+  parts.push(`--${boundary}--`);
+  return Buffer.from(parts.join("\r\n")).toString("base64url");
 }

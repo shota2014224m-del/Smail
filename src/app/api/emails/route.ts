@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { fetchEmails, fetchEmailsByLabel } from "@/lib/gmail";
+import { applyFilterRules } from "@/lib/filters";
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -14,11 +15,21 @@ export async function GET(request: NextRequest) {
 
   if (refresh) {
     try {
+      let fetched;
       if (label) {
-        await fetchEmailsByLabel(activeAccount.id, label, 50);
+        fetched = await fetchEmailsByLabel(activeAccount.id, label, 50);
       } else {
-        await fetchEmails(activeAccount.id, 50);
+        fetched = await fetchEmails(activeAccount.id, 50);
       }
+      // Apply filter rules to newly fetched emails
+      await applyFilterRules(fetched.map((e) => ({
+        id: e.id,
+        accountId: e.accountId,
+        subject: e.subject,
+        from: e.from,
+        body: e.body,
+        labels: e.labels,
+      }))).catch(() => {}); // non-blocking
     } catch (err) {
       console.error("Failed to fetch emails from Gmail:", err);
     }

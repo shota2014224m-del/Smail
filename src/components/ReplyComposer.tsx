@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useCallback, useEffect } from "react";
+import AttachmentPicker, { FileAttachment } from "./AttachmentPicker";
 import { EmailMessage } from "@/types";
 
 interface Props {
@@ -34,6 +35,7 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
   const [bcc, setBcc] = useState("");
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
+  const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [showAI, setShowAI] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
@@ -93,6 +95,7 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
           replyBody,
           cc: cc.trim() || undefined,
           bcc: bcc.trim() || undefined,
+          attachments: attachments.length ? attachments.map(({ filename, mimeType, data }) => ({ filename, mimeType, data })) : undefined,
         }),
       });
       const data = await res.json();
@@ -308,6 +311,7 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
             </svg>
             Claude AI
           </button>
+          <AttachmentPicker attachments={attachments} onChange={setAttachments} />
         </div>
 
         <div className="flex items-center gap-2">

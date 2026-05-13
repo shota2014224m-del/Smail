@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useCallback } from "react";
+import AttachmentPicker, { FileAttachment } from "./AttachmentPicker";
 import { EmailMessage } from "@/types";
 
 interface Props {
@@ -21,6 +22,7 @@ export default function ForwardComposer({ email, onClose, onSent }: Props) {
   const [body, setBody] = useState(() => buildQuotedBody(email));
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
+  const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const toRef = useRef<HTMLInputElement>(null);
@@ -41,6 +43,7 @@ export default function ForwardComposer({ email, onClose, onSent }: Props) {
           body,
           cc: cc.trim() || undefined,
           bcc: bcc.trim() || undefined,
+          attachments: attachments.length ? attachments.map(({ filename, mimeType, data }) => ({ filename, mimeType, data })) : undefined,
         }),
       });
       const data = await res.json();
@@ -150,7 +153,8 @@ export default function ForwardComposer({ email, onClose, onSent }: Props) {
       </div>
 
       {/* Bottom toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 border-t border-gray-100">
+      <div className="flex items-center justify-between px-4 py-2 border-t border-gray-100 flex-wrap gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
         <button
           onClick={handleSend}
           disabled={sending || !to.trim() || !body.trim()}
@@ -173,6 +177,8 @@ export default function ForwardComposer({ email, onClose, onSent }: Props) {
             </>
           )}
         </button>
+        <AttachmentPicker attachments={attachments} onChange={setAttachments} />
+        </div>
         <button
           onClick={onClose}
           className="text-sm text-gray-500 hover:text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-100"

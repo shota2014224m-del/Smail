@@ -3,7 +3,7 @@ import { sendEmail } from "@/lib/gmail";
 import { prisma } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
-  const { to, subject, body, cc, bcc } = await request.json();
+  const { to, subject, body, cc, bcc, attachments } = await request.json();
 
   if (!to || !subject || !body) {
     return NextResponse.json({ error: "to, subject, body は必須です" }, { status: 400 });
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await sendEmail(activeAccount.id, { to, subject, body, cc, bcc });
+    await sendEmail(activeAccount.id, { to, subject, body, cc, bcc, attachments });
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     console.error("Send email error:", err);

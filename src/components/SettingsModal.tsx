@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import FilterRulesPanel from "./FilterRulesPanel";
 
 interface Settings {
   obsidianPath: string;
@@ -52,7 +53,7 @@ export default function SettingsModal({ onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <h2 className="text-lg font-semibold text-gray-900">設定</h2>
           <button onClick={onClose} className="text-gray-600 hover:text-gray-900">
@@ -62,7 +63,7 @@ export default function SettingsModal({ onClose }: Props) {
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-5 overflow-y-auto flex-1">
           {/* Obsidian */}
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-1">
@@ -127,6 +128,10 @@ export default function SettingsModal({ onClose }: Props) {
               rows={4}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 bg-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
+          </div>
+
+          <div className="border-t border-gray-100 pt-4">
+            <FilterRulesPanel />
           </div>
         </div>
 
