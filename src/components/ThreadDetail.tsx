@@ -153,6 +153,8 @@ export default function ThreadDetail({ email, onClose, onReplySuccess, replyOpen
   const [actionLoading, setActionLoading] = useState(false);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
   const [labelLoading, setLabelLoading] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
 
   const showReply = replyOpen ?? localReply;
   const setShowReply = (v: boolean) => {
@@ -191,6 +193,27 @@ export default function ThreadDetail({ email, onClose, onReplySuccess, replyOpen
 
   const latestEmail = threadEmails[threadEmails.length - 1] ?? email;
   const allIds = threadEmails.map((m) => m.id);
+
+  async function handleSummarize() {
+    setSummarizing(true);
+    setSummary(null);
+    try {
+      const res = await fetch("/api/emails/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          threadId: email.threadId ?? email.id,
+          emailIds: allIds.length ? allIds : [email.id],
+        }),
+      });
+      const data = await res.json();
+      setSummary(data.summary ?? data.error ?? "要約に失敗しました");
+    } catch {
+      setSummary("要約に失敗しました");
+    } finally {
+      setSummarizing(false);
+    }
+  }
 
   async function handleLabelToggle(labelId: string) {
     const currentLabels: string[] = JSON.parse(JSON.stringify(email.labels));
@@ -245,6 +268,25 @@ export default function ThreadDetail({ email, onClose, onReplySuccess, replyOpen
         )}
         {/* Action buttons */}
         <div className="flex items-center gap-1">
+          {/* AI要約ボタン */}
+          <button
+            onClick={handleSummarize}
+            disabled={summarizing}
+            title="AIで要約"
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${summary ? "bg-purple-100 text-purple-700" : "text-gray-500 hover:bg-gray-100 hover:text-purple-600"}`}
+          >
+            {summarizing ? (
+              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" />
+              </svg>
+            )}
+            要約
+          </button>
           <button
             onClick={() => handleAction(email.isStarred ? "unstar" : "star")}
             disabled={actionLoading}
@@ -329,6 +371,36 @@ export default function ThreadDetail({ email, onClose, onReplySuccess, replyOpen
           返信
         </button>
       </div>
+
+      {/* AI要約パネル */}
+      {(summary || summarizing) && (
+        <div className="mx-6 mt-4 rounded-xl border border-purple-200 bg-purple-50 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2 shrink-0">
+              <svg className="w-4 h-4 text-purple-500" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" />
+              </svg>
+              <span className="text-xs font-semibold text-purple-700">AI要約</span>
+            </div>
+            {summary && (
+              <button onClick={() => setSummary(null)} className="text-purple-400 hover:text-purple-600 shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+          {summarizing ? (
+            <div className="mt-2 space-y-2">
+              <div className="h-3 bg-purple-200 rounded animate-pulse w-full" />
+              <div className="h-3 bg-purple-200 rounded animate-pulse w-4/5" />
+              <div className="h-3 bg-purple-200 rounded animate-pulse w-3/5" />
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-purple-900 leading-relaxed whitespace-pre-wrap">{summary}</p>
+          )}
+        </div>
+      )}
 
       {/* Thread body */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
