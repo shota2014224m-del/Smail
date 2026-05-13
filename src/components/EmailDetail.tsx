@@ -62,13 +62,13 @@ export default function EmailDetail({ email, onClose, onReplySuccess }: Props) {
             <span className="font-semibold text-gray-900 text-sm">
               {email.fromName ?? email.from}
             </span>
-            <span className="text-xs text-gray-400 shrink-0">{formatFullDate(email.date)}</span>
+            <span className="text-xs text-gray-600 shrink-0">{formatFullDate(email.date)}</span>
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">
-            <span className="text-gray-400">差出人:</span> {email.from}
+          <p className="text-xs text-gray-700 mt-0.5">
+            <span className="text-gray-500">差出人:</span> {email.from}
           </p>
-          <p className="text-xs text-gray-500">
-            <span className="text-gray-400">宛先:</span> {email.to}
+          <p className="text-xs text-gray-700">
+            <span className="text-gray-500">宛先:</span> {email.to}
           </p>
         </div>
       </div>

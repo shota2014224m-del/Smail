@@ -72,15 +72,15 @@ export default function EmailList({ emails, selectedId, onSelect, loading }: Pro
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
-              <span className={`text-sm truncate ${!email.isRead ? "font-semibold" : "text-gray-600"}`}>
+              <span className={`text-sm truncate ${!email.isRead ? "font-semibold text-gray-900" : "text-gray-700"}`}>
                 {email.fromName ?? email.from}
               </span>
-              <span className="text-xs text-gray-400 shrink-0">{formatDate(email.date)}</span>
+              <span className="text-xs text-gray-600 shrink-0">{formatDate(email.date)}</span>
             </div>
-            <p className={`text-sm truncate ${!email.isRead ? "font-medium text-gray-900" : "text-gray-600"}`}>
+            <p className={`text-sm truncate ${!email.isRead ? "font-medium text-gray-900" : "text-gray-700"}`}>
               {email.subject}
             </p>
-            <p className="text-xs text-gray-400 truncate">{email.snippet ?? email.body}</p>
+            <p className="text-xs text-gray-600 truncate">{email.snippet ?? email.body}</p>
           </div>
           {!email.isRead && (
             <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-2" />

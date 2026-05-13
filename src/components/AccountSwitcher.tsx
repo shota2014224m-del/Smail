@@ -27,10 +27,10 @@ export default function AccountSwitcher({ accounts, onSwitch, onAddAccount, onDe
           </div>
         )}
         <div className="flex-1 text-left min-w-0">
-          <p className="text-sm font-medium truncate">{active?.name ?? active?.email}</p>
-          <p className="text-xs text-gray-500 truncate">{active?.email}</p>
+          <p className="text-sm font-medium text-gray-900 truncate">{active?.name ?? active?.email}</p>
+          <p className="text-xs text-gray-600 truncate">{active?.email}</p>
         </div>
-        <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
@@ -57,8 +57,8 @@ export default function AccountSwitcher({ accounts, onSwitch, onAddAccount, onDe
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{account.name ?? account.email}</p>
-                  <p className="text-xs text-gray-500 truncate">{account.email}</p>
+                  <p className="text-sm font-medium text-gray-900 truncate">{account.name ?? account.email}</p>
+                  <p className="text-xs text-gray-600 truncate">{account.email}</p>
                 </div>
                 {account.isActive && (
                   <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
