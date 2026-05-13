@@ -44,6 +44,8 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
   const [sending, setSending] = useState(false);
   const [undoCountdown, setUndoCountdown] = useState<number | null>(null);
   const [confidence, setConfidence] = useState<number | null>(null);
+  const [patternId, setPatternId] = useState<string | null>(null);
+  const [feedbackSent, setFeedbackSent] = useState<"up" | "down" | null>(null);
   const [error, setError] = useState("");
   const instructionRef = useRef<HTMLTextAreaElement>(null);
   const replyRef = useRef<HTMLTextAreaElement>(null);
@@ -79,6 +81,8 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
       if (data.error) throw new Error(data.error);
       setReplyBody(data.body);
       setConfidence(data.confidence);
+      setPatternId(data.patternId ?? null);
+      setFeedbackSent(null);
       setTimeout(() => replyRef.current?.focus(), 100);
     } catch (err: any) {
       setError(err.message ?? "生成に失敗しました");
@@ -86,6 +90,16 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
       setGenerating(false);
     }
   }, [email.id, instruction, tone]);
+
+  const handleFeedback = useCallback(async (type: "up" | "down") => {
+    if (!patternId || feedbackSent) return;
+    setFeedbackSent(type);
+    await fetch("/api/reply/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patternId, delta: type === "up" ? 1 : -1 }),
+    });
+  }, [patternId, feedbackSent]);
 
   const executeSend = useCallback(async () => {
     setSending(true);
@@ -266,7 +280,7 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
             </div>
           </div>
 
-          {/* 信頼度バー */}
+          {/* 信頼度バー + フィードバック */}
           {confidence !== null && (
             <div className="mt-2 flex items-center gap-2">
               <div className="flex-1 h-1 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
@@ -276,6 +290,34 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
                 />
               </div>
               <span className="text-xs text-gray-500 dark:text-gray-400">信頼度 {Math.round(confidence * 100)}%</span>
+              {patternId && (
+                <div className="flex items-center gap-1 ml-1">
+                  <span className="text-xs text-gray-400 dark:text-gray-500">評価:</span>
+                  <button
+                    onClick={() => handleFeedback("up")}
+                    disabled={!!feedbackSent}
+                    title="良い返信"
+                    className={`p-1 rounded transition-colors ${feedbackSent === "up" ? "text-green-500" : "text-gray-400 dark:text-gray-500 hover:text-green-500 disabled:opacity-50"}`}
+                  >
+                    <svg className="w-4 h-4" fill={feedbackSent === "up" ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => handleFeedback("down")}
+                    disabled={!!feedbackSent}
+                    title="改善が必要"
+                    className={`p-1 rounded transition-colors ${feedbackSent === "down" ? "text-red-500" : "text-gray-400 dark:text-gray-500 hover:text-red-500 disabled:opacity-50"}`}
+                  >
+                    <svg className="w-4 h-4" fill={feedbackSent === "down" ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v2a2 2 0 002 2h.095c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
+                    </svg>
+                  </button>
+                  {feedbackSent && (
+                    <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">フィードバック送信済み</span>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

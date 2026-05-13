@@ -37,11 +37,24 @@ export async function POST(request: NextRequest) {
       userInstruction,
     });
 
+    const pattern = await prisma.replyPattern.create({
+      data: {
+        accountId: email.accountId,
+        emailId: email.id,
+        originalSubject: email.subject,
+        originalFrom: email.from,
+        originalBody: email.body,
+        replyBody: result.body,
+        feedback: 0,
+      },
+    });
+
     return NextResponse.json({
       body: result.body,
       confidence: result.confidence,
       subject: email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`,
       to: email.from,
+      patternId: pattern.id,
     });
   } catch (err: any) {
     console.error("Reply generation error:", err);
