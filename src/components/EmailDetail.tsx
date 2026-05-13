@@ -7,10 +7,17 @@ interface Props {
   email: EmailMessage;
   onClose: () => void;
   onReplySuccess: () => void;
+  replyOpen?: boolean;
+  onReplyOpenChange?: (open: boolean) => void;
 }
 
-export default function EmailDetail({ email, onClose, onReplySuccess }: Props) {
-  const [showReply, setShowReply] = useState(false);
+export default function EmailDetail({ email, onClose, onReplySuccess, replyOpen, onReplyOpenChange }: Props) {
+  const [localReply, setLocalReply] = useState(false);
+  const showReply = replyOpen ?? localReply;
+  const setShowReply = (v: boolean) => {
+    setLocalReply(v);
+    onReplyOpenChange?.(v);
+  };
 
   function formatFullDate(dateStr: string) {
     return new Date(dateStr).toLocaleString("ja-JP", {

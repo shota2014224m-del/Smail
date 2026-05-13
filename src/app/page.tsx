@@ -35,6 +35,7 @@ export default function Home() {
   const [navItem, setNavItem] = useState<NavItem>("inbox");
   const [showSettings, setShowSettings] = useState(false);
   const [showCompose, setShowCompose] = useState(false);
+  const [replyOpen, setReplyOpen] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState("");
@@ -144,6 +145,49 @@ export default function Home() {
 
   const hasActiveAccount = accounts.some((a) => a.isActive);
   const unreadCount = emails.filter((e) => !e.isRead && e.labels.includes("INBOX")).length;
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const meta = e.metaKey || e.ctrlKey;
+      const tag = (e.target as HTMLElement).tagName;
+      const isInput = tag === "INPUT" || tag === "TEXTAREA";
+
+      if (meta && e.key === "n" && !isInput) {
+        e.preventDefault();
+        setShowCompose(true);
+        return;
+      }
+      if (meta && e.key === "r" && !isInput && selectedEmail) {
+        e.preventDefault();
+        setReplyOpen(true);
+        return;
+      }
+      if (e.key === "Escape") {
+        if (showCompose) { setShowCompose(false); return; }
+        if (showSettings) { setShowSettings(false); return; }
+        if (selectedEmail) { setSelectedEmail(null); return; }
+        return;
+      }
+      if (e.key === "ArrowDown" && !isInput) {
+        e.preventDefault();
+        setSelectedEmail((prev) => {
+          const idx = prev ? filteredEmails.findIndex((m) => m.id === prev.id) : -1;
+          return filteredEmails[idx + 1] ?? prev;
+        });
+        return;
+      }
+      if (e.key === "ArrowUp" && !isInput) {
+        e.preventDefault();
+        setSelectedEmail((prev) => {
+          const idx = prev ? filteredEmails.findIndex((m) => m.id === prev.id) : 0;
+          return filteredEmails[Math.max(0, idx - 1)] ?? prev;
+        });
+        return;
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedEmail, showCompose, showSettings, filteredEmails]);
 
   function getNavLabel() {
     if (navItem === "inbox") return "受信トレイ";
@@ -304,6 +348,32 @@ export default function Home() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </button>
+
+          {/* ショートカットヘルプ */}
+          <div className="group relative">
+            <button className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2m0 4h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </button>
+            <div className="absolute right-0 top-full mt-1 w-56 bg-gray-900 text-white text-xs rounded-xl shadow-lg p-3 hidden group-hover:block z-50">
+              <p className="font-semibold mb-2 text-gray-300">キーボードショートカット</p>
+              <div className="space-y-1.5">
+                {[
+                  ["⌘+N", "新規メール作成"],
+                  ["⌘+R", "返信（メール選択中）"],
+                  ["⌘+Enter", "生成 / 送信"],
+                  ["↑ / ↓", "メール移動"],
+                  ["Escape", "閉じる"],
+                ].map(([key, desc]) => (
+                  <div key={key} className="flex items-center justify-between gap-3">
+                    <span className="text-gray-400">{desc}</span>
+                    <kbd className="bg-gray-700 px-1.5 py-0.5 rounded text-gray-200 font-mono">{key}</kbd>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </header>
 
         <div className="flex-1 flex min-h-0">
@@ -361,7 +431,10 @@ export default function Home() {
                   <EmailDetail
                     email={selectedEmail}
                     onClose={() => setSelectedEmail(null)}
+                    replyOpen={replyOpen}
+                    onReplyOpenChange={setReplyOpen}
                     onReplySuccess={() => {
+                      setReplyOpen(false);
                       setSelectedEmail(null);
                       loadEmails(true);
                     }}
