@@ -2,6 +2,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import AttachmentPicker, { FileAttachment } from "./AttachmentPicker";
 
+const UNDO_DELAY_MS = 5000;
+
 interface Props {
   onClose: () => void;
   onSent: () => void;
@@ -39,8 +41,10 @@ export default function ComposeModal({ onClose, onSent }: Props) {
   const [showAI, setShowAI] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
+  const [undoCountdown, setUndoCountdown] = useState<number | null>(null);
   const [error, setError] = useState("");
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const undoCancelRef = useRef<(() => void) | null>(null);
   const DRAFT_KEY = "draft_compose";
 
   // Restore draft on mount
@@ -100,11 +104,7 @@ export default function ComposeModal({ onClose, onSent }: Props) {
     }
   }, [subject, instruction, tone, to]);
 
-  const handleSend = useCallback(async () => {
-    if (!to.trim()) { setError("宛先を入力してください"); return; }
-    if (!subject.trim()) { setError("件名を入力してください"); return; }
-    if (!body.trim()) { setError("本文を入力してください"); return; }
-
+  const executeSend = useCallback(async () => {
     setSending(true);
     setError("");
     try {
@@ -129,7 +129,37 @@ export default function ComposeModal({ onClose, onSent }: Props) {
     } finally {
       setSending(false);
     }
-  }, [to, subject, body, cc, bcc, onSent]);
+  }, [to, subject, body, cc, bcc, attachments, onSent]);
+
+  const handleSend = useCallback(() => {
+    if (!to.trim()) { setError("宛先を入力してください"); return; }
+    if (!subject.trim()) { setError("件名を入力してください"); return; }
+    if (!body.trim()) { setError("本文を入力してください"); return; }
+
+    let cancelled = false;
+    undoCancelRef.current = () => { cancelled = true; };
+
+    let remaining = UNDO_DELAY_MS / 1000;
+    setUndoCountdown(remaining);
+    const tick = setInterval(() => {
+      remaining -= 1;
+      setUndoCountdown(remaining);
+      if (remaining <= 0) clearInterval(tick);
+    }, 1000);
+
+    setTimeout(() => {
+      clearInterval(tick);
+      setUndoCountdown(null);
+      undoCancelRef.current = null;
+      if (!cancelled) executeSend();
+    }, UNDO_DELAY_MS);
+  }, [to, subject, body, executeSend]);
+
+  const handleUndoSend = useCallback(() => {
+    undoCancelRef.current?.();
+    undoCancelRef.current = null;
+    setUndoCountdown(null);
+  }, []);
 
   function handleBodyKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -298,12 +328,25 @@ export default function ComposeModal({ onClose, onSent }: Props) {
           </div>
         )}
 
+        {/* Undo カウントダウンバナー */}
+        {undoCountdown !== null && (
+          <div className="flex items-center justify-between px-5 py-2 bg-gray-900 text-white text-sm border-t border-gray-100">
+            <span>{undoCountdown}秒後に送信...</span>
+            <button
+              onClick={handleUndoSend}
+              className="px-3 py-1 rounded-md bg-white/20 hover:bg-white/30 text-xs font-semibold"
+            >
+              取り消す
+            </button>
+          </div>
+        )}
+
         {/* ボトムツールバー */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
           <div className="flex items-center gap-2">
             <button
               onClick={handleSend}
-              disabled={sending || !to.trim() || !body.trim()}
+              disabled={sending || !to.trim() || !body.trim() || undoCountdown !== null}
               className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {sending ? (

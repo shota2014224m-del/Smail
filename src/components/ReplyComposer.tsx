@@ -1,6 +1,8 @@
 "use client";
 import { useState, useRef, useCallback, useEffect } from "react";
 import AttachmentPicker, { FileAttachment } from "./AttachmentPicker";
+
+const UNDO_DELAY_MS = 5000;
 import { EmailMessage } from "@/types";
 
 interface Props {
@@ -39,10 +41,12 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
   const [showAI, setShowAI] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
+  const [undoCountdown, setUndoCountdown] = useState<number | null>(null);
   const [confidence, setConfidence] = useState<number | null>(null);
   const [error, setError] = useState("");
   const instructionRef = useRef<HTMLTextAreaElement>(null);
   const replyRef = useRef<HTMLTextAreaElement>(null);
+  const undoCancelRef = useRef<(() => void) | null>(null);
   const draftKey = `draft_reply_${email.id}`;
 
   // Restore draft on mount
@@ -82,8 +86,7 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
     }
   }, [email.id, instruction, tone]);
 
-  const handleSend = useCallback(async () => {
-    if (!replyBody.trim()) return;
+  const executeSend = useCallback(async () => {
     setSending(true);
     setError("");
     try {
@@ -107,7 +110,34 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
     } finally {
       setSending(false);
     }
-  }, [email.id, replyBody, cc, bcc, onSent, draftKey]);
+  }, [email.id, replyBody, cc, bcc, attachments, onSent, draftKey]);
+
+  const handleSend = useCallback(() => {
+    if (!replyBody.trim()) return;
+    let cancelled = false;
+    undoCancelRef.current = () => { cancelled = true; };
+
+    let remaining = UNDO_DELAY_MS / 1000;
+    setUndoCountdown(remaining);
+    const tick = setInterval(() => {
+      remaining -= 1;
+      setUndoCountdown(remaining);
+      if (remaining <= 0) clearInterval(tick);
+    }, 1000);
+
+    setTimeout(() => {
+      clearInterval(tick);
+      setUndoCountdown(null);
+      undoCancelRef.current = null;
+      if (!cancelled) executeSend();
+    }, UNDO_DELAY_MS);
+  }, [replyBody, executeSend]);
+
+  const handleUndoSend = useCallback(() => {
+    undoCancelRef.current?.();
+    undoCancelRef.current = null;
+    setUndoCountdown(null);
+  }, []);
 
   function handleInstructionKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -270,13 +300,26 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
         />
       </div>
 
+      {/* undo カウントダウンバナー */}
+      {undoCountdown !== null && (
+        <div className="flex items-center justify-between px-4 py-2 bg-gray-900 text-white text-sm">
+          <span>{undoCountdown}秒後に送信...</span>
+          <button
+            onClick={handleUndoSend}
+            className="px-3 py-1 rounded-md bg-white/20 hover:bg-white/30 text-xs font-semibold"
+          >
+            取り消す
+          </button>
+        </div>
+      )}
+
       {/* ボトムツールバー */}
       <div className="flex items-center justify-between px-4 py-2 border-t border-gray-100">
         <div className="flex items-center gap-2">
           {/* 送信 */}
           <button
             onClick={handleSend}
-            disabled={sending || !replyBody.trim()}
+            disabled={sending || !replyBody.trim() || undoCountdown !== null}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {sending ? (

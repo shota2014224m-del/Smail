@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import EmailList from "@/components/EmailList";
 import ThreadDetail from "@/components/ThreadDetail";
+import ToastContainer from "@/components/Toast";
+import { useToast } from "@/hooks/useToast";
 import AccountSwitcher from "@/components/AccountSwitcher";
 import SettingsModal from "@/components/SettingsModal";
 import ComposeModal from "@/components/ComposeModal";
@@ -51,6 +53,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedThreadIds, setSelectedThreadIds] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const { toasts, toast, dismiss } = useToast();
   const [searchResults, setSearchResults] = useState<EmailMessage[] | null>(null);
   const [searching, setSearching] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -212,6 +215,8 @@ export default function Home() {
       });
       setSelectedThreadIds(new Set());
       loadEmails(true);
+      const labels: Record<string, string> = { archive: "アーカイブしました", trash: "ゴミ箱に移動しました", markRead: "既読にしました", markUnread: "未読にしました" };
+      toast(labels[action] ?? "操作完了");
     } finally {
       setBulkActionLoading(false);
     }
@@ -604,9 +609,11 @@ export default function Home() {
           onSent={() => {
             setShowCompose(false);
             loadEmails(true);
+            toast("メールを送信しました", "success");
           }}
         />
       )}
+      <ToastContainer toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }
