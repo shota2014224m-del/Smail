@@ -32,11 +32,11 @@ export default function EmailList({ emails, selectedId, onSelect, loading, selec
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="p-3 rounded-lg animate-pulse">
             <div className="flex gap-3">
-              <div className="w-9 h-9 rounded-full bg-gray-200" />
+              <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700" />
               <div className="flex-1 space-y-2">
-                <div className="h-4 bg-gray-200 rounded w-3/4" />
-                <div className="h-3 bg-gray-200 rounded w-1/2" />
-                <div className="h-3 bg-gray-200 rounded w-full" />
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full" />
               </div>
             </div>
           </div>
@@ -84,9 +84,9 @@ export default function EmailList({ emails, selectedId, onSelect, loading, selec
         return (
         <div
           key={threadKey}
-          className={`flex items-start gap-2 px-3 py-3 cursor-pointer border-b border-gray-100 hover:bg-gray-50 transition-colors group ${
-            selectedId === email.id ? "bg-blue-50 border-l-4 border-l-blue-500" : ""
-          } ${isChecked ? "bg-blue-50" : hasUnread ? "bg-white" : "bg-gray-50"}`}
+          className={`flex items-start gap-2 px-3 py-3 cursor-pointer border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group ${
+            selectedId === email.id ? "bg-blue-50 dark:bg-blue-950/50 border-l-4 border-l-blue-500" : ""
+          } ${isChecked ? "bg-blue-50 dark:bg-blue-950/50" : hasUnread ? "bg-white dark:bg-gray-900" : "bg-gray-50 dark:bg-gray-800/50"}`}
         >
           {/* Checkbox */}
           <div className="flex items-center pt-1 shrink-0">
@@ -107,18 +107,18 @@ export default function EmailList({ emails, selectedId, onSelect, loading, selec
           </div>
           <div className="flex-1 min-w-0" onClick={() => onSelect(email)}>
             <div className="flex items-center justify-between gap-2">
-              <span className={`text-sm truncate ${hasUnread ? "font-semibold text-gray-900" : "text-gray-700"}`}>
+              <span className={`text-sm truncate ${hasUnread ? "font-semibold text-gray-900 dark:text-gray-100" : "text-gray-700 dark:text-gray-300"}`}>
                 {email.fromName ?? email.from}
                 {count > 1 && (
                   <span className="ml-1.5 text-xs text-gray-500 font-normal">{count}</span>
                 )}
               </span>
-              <span className="text-xs text-gray-600 shrink-0">{formatDate(email.date)}</span>
+              <span className="text-xs text-gray-600 dark:text-gray-400 shrink-0">{formatDate(email.date)}</span>
             </div>
-            <p className={`text-sm truncate ${hasUnread ? "font-medium text-gray-900" : "text-gray-700"}`}>
+            <p className={`text-sm truncate ${hasUnread ? "font-medium text-gray-900 dark:text-gray-100" : "text-gray-700 dark:text-gray-300"}`}>
               {email.subject}
             </p>
-            <p className="text-xs text-gray-600 truncate">{email.snippet ?? email.body}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{email.snippet ?? email.body}</p>
           </div>
           {hasUnread && (
             <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-2" />

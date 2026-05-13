@@ -155,12 +155,12 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
   }
 
   return (
-    <div className="border-t-2 border-gray-200 bg-white flex flex-col">
+    <div className="border-t-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col">
       {/* To + CC/BCC toggles + Close */}
-      <div className="border-b border-gray-100">
+      <div className="border-b border-gray-100 dark:border-gray-700">
         <div className="flex items-center px-4 py-2">
-          <span className="text-xs text-gray-400 w-10 shrink-0">To</span>
-          <span className="flex-1 text-sm text-gray-900 font-medium">{email.from}</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500 w-10 shrink-0">To</span>
+          <span className="flex-1 text-sm text-gray-900 dark:text-gray-100 font-medium">{email.from}</span>
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setShowCc(!showCc)}
@@ -207,12 +207,12 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
 
       {/* AI パネル */}
       {showAI && (
-        <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
+        <div className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 py-3">
           <div className="flex items-center gap-2 mb-2">
             <svg className="w-4 h-4 text-purple-500" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" />
             </svg>
-            <span className="text-sm font-semibold text-gray-800">Claude AI で下書き生成</span>
+            <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Claude AI で下書き生成</span>
           </div>
 
           <div className="flex gap-2">
@@ -224,7 +224,7 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
                 onKeyDown={handleInstructionKeyDown}
                 placeholder={`指示（例：丁寧にお断りして、来週の提案をする）　⌘+Enter で生成 / Enter で改行`}
                 rows={2}
-                className="w-full text-sm text-gray-900 placeholder-gray-400 bg-white border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-purple-400"
+                className="w-full text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-purple-400"
               />
             </div>
 
@@ -233,7 +233,7 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
               <select
                 value={tone}
                 onChange={(e) => setTone(e.target.value as Tone)}
-                className="text-sm text-gray-900 bg-white border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer"
+                className="text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer"
               >
                 {TONES.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
@@ -269,13 +269,13 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
           {/* 信頼度バー */}
           {confidence !== null && (
             <div className="mt-2 flex items-center gap-2">
-              <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+              <div className="flex-1 h-1 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-purple-500 rounded-full transition-all duration-500"
                   style={{ width: `${confidence * 100}%` }}
                 />
               </div>
-              <span className="text-xs text-gray-500">信頼度 {Math.round(confidence * 100)}%</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">信頼度 {Math.round(confidence * 100)}%</span>
             </div>
           )}
         </div>
@@ -297,7 +297,7 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
           onKeyDown={handleReplyKeyDown}
           placeholder={`返信を入力... （⌘+Enter で送信）`}
           rows={6}
-          className="w-full text-sm text-gray-900 placeholder-gray-400 bg-white border-0 resize-none focus:outline-none"
+          className="w-full text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-900 border-0 resize-none focus:outline-none"
         />
       </div>
 
@@ -315,7 +315,7 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
       )}
 
       {/* ボトムツールバー */}
-      <div className="flex items-center justify-between px-4 py-2 border-t border-gray-100">
+      <div className="flex items-center justify-between px-4 py-2 border-t border-gray-100 dark:border-gray-700">
         <div className="flex items-center gap-2">
           {/* 送信 */}
           <button
@@ -346,8 +346,8 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
             onClick={() => setShowAI(!showAI)}
             className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors ${
               showAI
-                ? "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
-                : "text-gray-600 border-gray-200 hover:bg-gray-50"
+                ? "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700 hover:bg-purple-100 dark:hover:bg-purple-900/50"
+                : "text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
             }`}
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
