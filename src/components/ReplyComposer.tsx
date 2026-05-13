@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useCallback, useEffect } from "react";
 import AttachmentPicker, { FileAttachment } from "./AttachmentPicker";
+import TemplatePicker, { Template } from "./TemplatePicker";
 
 const UNDO_DELAY_MS = 5000;
 import { EmailMessage } from "@/types";
@@ -355,6 +356,9 @@ export default function ReplyComposer({ email, onSent, onClose }: Props) {
             Claude AI
           </button>
           <AttachmentPicker attachments={attachments} onChange={setAttachments} />
+          <TemplatePicker onSelect={(t: Template) => {
+            setReplyBody(t.body);
+          }} />
         </div>
 
         <div className="flex items-center gap-2">

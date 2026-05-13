@@ -73,6 +73,15 @@ model Settings {
   systemPrompt   String  @default("")
 }
 
+model Template {
+  id        String   @id @default(cuid())
+  name      String
+  subject   String   @default("")
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model FilterRule {
   id             String   @id @default(cuid())
   accountId      String

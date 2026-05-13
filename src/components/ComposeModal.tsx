@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useCallback, useEffect } from "react";
 import AttachmentPicker, { FileAttachment } from "./AttachmentPicker";
+import TemplatePicker, { Template } from "./TemplatePicker";
 
 const UNDO_DELAY_MS = 5000;
 
@@ -381,6 +382,10 @@ export default function ComposeModal({ onClose, onSent }: Props) {
               Claude AI
             </button>
             <AttachmentPicker attachments={attachments} onChange={setAttachments} />
+            <TemplatePicker onSelect={(t: Template) => {
+              setBody(t.body);
+              if (!subject.trim() && t.subject) setSubject(t.subject);
+            }} />
           </div>
 
           <div className="flex items-center gap-2">

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import FilterRulesPanel from "./FilterRulesPanel";
+import TemplatesPanel from "./TemplatesPanel";
 
 interface Settings {
   obsidianPath: string;
@@ -132,6 +133,10 @@ export default function SettingsModal({ onClose }: Props) {
 
           <div className="border-t border-gray-100 pt-4">
             <FilterRulesPanel />
+          </div>
+
+          <div className="border-t border-gray-100 pt-4">
+            <TemplatesPanel />
           </div>
         </div>
 
