@@ -42,11 +42,18 @@ function stringToColor(str: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
+import DOMPurify from "isomorphic-dompurify";
+
 function sanitizeHtml(html: string): string {
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-    .replace(/on\w+="[^"]*"/gi, "")
-    .replace(/on\w+='[^']*'/gi, "");
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      "a", "b", "br", "blockquote", "code", "div", "em", "h1", "h2", "h3",
+      "h4", "h5", "h6", "hr", "i", "img", "li", "ol", "p", "pre", "s",
+      "span", "strong", "table", "tbody", "td", "th", "thead", "tr", "u", "ul",
+    ],
+    ALLOWED_ATTR: ["href", "src", "alt", "title", "style", "class", "target", "rel"],
+    ALLOW_DATA_ATTR: false,
+  });
 }
 
 function formatDate(dateStr: string) {

@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateReply, generateNewEmail } from "@/lib/claude";
 import { prisma } from "@/lib/db";
+import { rateLimit } from "@/lib/rateLimit";
 
 export async function POST(request: NextRequest) {
+  // 1分間に10回まで
+  if (!rateLimit("ai-generate", 10, 60_000)) {
+    return NextResponse.json({ error: "リクエストが多すぎます。しばらく待ってから再試行してください。" }, { status: 429 });
+  }
   const { emailId, userInstruction, isNew, subject, to } = await request.json();
 
   // 新規メール作成モード
@@ -19,14 +24,15 @@ export async function POST(request: NextRequest) {
         userInstruction,
       });
       return NextResponse.json({ body: result.body, confidence: result.confidence });
-    } catch (err: any) {
-      return NextResponse.json({ error: err?.message ?? "生成に失敗しました" }, { status: 500 });
+    } catch (err) {
+      console.error("New email generation error:", err);
+      return NextResponse.json({ error: "生成に失敗しました" }, { status: 500 });
     }
   }
 
   // 返信モード
   const email = await prisma.email.findUnique({ where: { id: emailId } });
-  if (!email) return NextResponse.json({ error: "Email not found" }, { status: 404 });
+  if (!email) return NextResponse.json({ error: "メールが見つかりません" }, { status: 404 });
 
   try {
     const result = await generateReply({
@@ -56,11 +62,8 @@ export async function POST(request: NextRequest) {
       to: email.from,
       patternId: pattern.id,
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Reply generation error:", err);
-    return NextResponse.json(
-      { error: err?.message ?? "Failed to generate reply" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "返信の生成に失敗しました" }, { status: 500 });
   }
 }
